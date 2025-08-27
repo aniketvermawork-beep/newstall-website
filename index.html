@@ -104,13 +104,12 @@
             fontLoader.load('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/fonts/helvetiker_regular.typeface.json', function(loadedFont) {
                 font = loadedFont;
                 
-                // Try to load texture
+                // Load texture
                 const textureLoader = new THREE.TextureLoader();
                 textureLoader.crossOrigin = 'anonymous'; // Handle CORS
                 textureLoader.load(
                     'https://aniketvermawork-beep.github.io/logo/image.png',
                     function(texture) {
-                        console.log('Texture loaded successfully');
                         wallTexture = texture;
                         createStall(stallWidth, stallDepth, stallHeight, floorThickness);
                     },
@@ -119,7 +118,7 @@
                     },
                     function(error) {
                         console.error('Error loading texture:', error);
-                        // Create stall without texture
+                        // Fallback to a solid color if the texture fails to load
                         createStall(stallWidth, stallDepth, stallHeight, floorThickness);
                     }
                 );
@@ -158,46 +157,29 @@
             floor.receiveShadow = true;
             stallGroup.add(floor);
 
-            // --- Create wall materials ---
-            let wallMaterial;
-            if (wallTexture) {
-                console.log('Creating textured wall material');
-                // Configure the texture for better visibility
-                wallTexture.wrapS = THREE.RepeatWrapping;
-                wallTexture.wrapT = THREE.RepeatWrapping;
-                wallTexture.repeat.set(2, 2); // Make texture repeat for better visibility
-                wallTexture.flipY = false; // Fix texture orientation
-                
-                wallMaterial = new THREE.MeshStandardMaterial({ 
-                    map: wallTexture,
-                    roughness: 0.8,
-                    metalness: 0.1,
-                    side: THREE.DoubleSide // Make sure texture is visible from both sides
-                });
-                console.log('Textured material created');
-            } else {
-                console.log('Using fallback white material');
-                // Fallback colored material to make it obvious when texture is missing
-                wallMaterial = new THREE.MeshStandardMaterial({ 
-                    color: 0xFF69B4, // Hot pink to make it obvious texture didn't load
-                    roughness: 0.7,
-                    metalness: 0.1
-                });
-            }
+            // --- Stall Walls with Local Image Texture ---
+            const brandingTextureUrl = 'https://aniketvermawork-beep.github.io/logo/image.png'; // New branding image URL
+            
+            // Create a material for the walls without the logo
+            const wallColorMaterial = new THREE.MeshStandardMaterial({ color: 0xFFFFFF }); // White walls
 
-            // --- Stall Walls with Texture ---
             // Rear wall
-            const rearWall = new THREE.Mesh(new THREE.BoxGeometry(stallWidth, stallHeight, 0.05), wallMaterial);
-            rearWall.position.set(0, stallHeight / 2 + floorThickness, stallDepth - 0.025);
-            rearWall.castShadow = true;
-            rearWall.receiveShadow = true;
-            stallGroup.add(rearWall);
+            let rearWall;
+            const doorWidth = 0.90;
+            const backWallWidth = stallWidth;
+            const doorSpace = doorWidth;
+            const remainingBackWall = backWallWidth - doorSpace;
+            const rearWallLeft = new THREE.Mesh(new THREE.BoxGeometry(remainingBackWall / 2, stallHeight, 0.05), wallColorMaterial);
+            rearWallLeft.position.set(-backWallWidth/2 + remainingBackWall/4, stallHeight/2 + floorThickness, stallDepth - 0.025);
+            stallGroup.add(rearWallLeft);
+            const rearWallRight = new THREE.Mesh(new THREE.BoxGeometry(remainingBackWall / 2, stallHeight, 0.05), wallColorMaterial);
+            rearWallRight.position.set(backWallWidth/2 - remainingBackWall/4, stallHeight/2 + floorThickness, stallDepth - 0.025);
+            stallGroup.add(rearWallRight);
 
             // Left wall
-            const leftWallMaterial = wallMaterial.clone();
+            let leftWallMaterial = wallColorMaterial;
             if (wallTexture) {
-                leftWallMaterial.map = wallTexture.clone();
-                leftWallMaterial.map.repeat.set(2, 1);
+                leftWallMaterial = new THREE.MeshStandardMaterial({ map: wallTexture });
             }
             const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.05, stallHeight, stallDepth), leftWallMaterial);
             leftWall.position.set(-stallWidth / 2 + 0.025, stallHeight / 2 + floorThickness, stallDepth / 2);
@@ -206,12 +188,7 @@
             stallGroup.add(leftWall);
 
             // Right wall
-            const rightWallMaterial = wallMaterial.clone();
-            if (wallTexture) {
-                rightWallMaterial.map = wallTexture.clone();
-                rightWallMaterial.map.repeat.set(2, 1);
-            }
-            const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.05, stallHeight, stallDepth), rightWallMaterial);
+            const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.05, stallHeight, stallDepth), wallColorMaterial);
             rightWall.position.set(stallWidth / 2 - 0.025, stallHeight / 2 + floorThickness, stallDepth / 2);
             rightWall.castShadow = true;
             rightWall.receiveShadow = true;
@@ -219,31 +196,25 @@
 
             // Front Counter Wall
             const counterWallHeight = 0.95; // Match the counter height
-            const frontCounterWallMaterial = wallMaterial.clone();
-            if (wallTexture) {
-                frontCounterWallMaterial.map = wallTexture.clone();
-                frontCounterWallMaterial.map.repeat.set(3, 1);
-            }
-            const frontCounterWall = new THREE.Mesh(new THREE.BoxGeometry(stallWidth, counterWallHeight, 0.05), frontCounterWallMaterial);
+            const frontCounterWall = new THREE.Mesh(new THREE.BoxGeometry(stallWidth, counterWallHeight, 0.05), wallColorMaterial);
             frontCounterWall.position.set(0, counterWallHeight / 2 + floorThickness, 0.025);
             frontCounterWall.castShadow = true;
             frontCounterWall.receiveShadow = true;
             stallGroup.add(frontCounterWall);
             
-            // --- Front Header Panel with texture ---
+            // --- Front Header Panel with single, cropped texture ---
             const headerHeight = 0.5;
             const headerWidth = 3.0;
             
-            const headerMaterial = wallTexture ? 
-                new THREE.MeshStandardMaterial({ map: wallTexture.clone() }) :
-                new THREE.MeshStandardMaterial({ color: 0xf5f5f5 });
-            
+            // No texture on the header
+            const headerMaterial = new THREE.MeshStandardMaterial({ color: 0xFFFFFF });
+
             const headerPanel = new THREE.Mesh(new THREE.BoxGeometry(headerWidth, headerHeight, 0.05), headerMaterial);
             headerPanel.position.set(0, stallHeight + floorThickness - headerHeight/2, 0.025);
             headerPanel.castShadow = true;
             headerPanel.receiveShadow = true;
             stallGroup.add(headerPanel);
-
+            
             // --- Counters in a C-shape layout ---
             const counterHeight = 0.95; // Use 0.95 for all counters for a consistent look
             const counterDepth = 0.75;
@@ -353,7 +324,7 @@
 
             // 4. Text label on Right Counter
             if (font) {
-                const labelText = createText("For cutting/production work", 0.06, 0.01, 0x000000, 
+                const labelText = createText("For cutting/production work", 0.06, 0.01, 0xFFFFFF, 
                     new THREE.Vector3(stallWidth / 2 - counterDepth / 2 - 0.3, counterHeight + floorThickness + 0.02, counterDepth + 0.3), 
                     new THREE.Vector3(-Math.PI / 2, 0, 0), font);
                 stallGroup.add(labelText);
@@ -361,7 +332,6 @@
 
 
             // --- Back Door ---
-            const doorWidth = 0.90;
             const doorHeight = 2.0; // Standard door height
             const doorThickness = 0.05;
 

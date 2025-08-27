@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Food Stall 3D Model</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Use a loader for fonts -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FontLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/geometries/TextGeometry.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; background-color: #f0f0f0; }
+        canvas { display: block; }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 14px;
+            max-width: 350px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            z-index: 10;
+        }
+        #info h3 { margin-top: 0; color: #64dd17; } /* Accent color */
+        #info p { margin-bottom: 5px; }
+        #info p:last-child { margin-bottom: 0; }
+        #info kbd {
+            background-color: #333;
+            border-radius: 3px;
+            padding: 2px 4px;
+            font-family: monospace;
+        }
+
+        #gemini-controls {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+        }
+        #generateConceptBtn {
+            padding: 12px 25px;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            background-color: #64dd17; /* Accent color */
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+        #generateConceptBtn:hover {
+            background-color: #55be12;
+            transform: translateY(-2px);
+        }
+        #generateConceptBtn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 100; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgba(0,0,0,0.6); /* Black w/ opacity */
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            width: 90%;
+            max-width: 600px;
+            position: relative;
+            animation: fadeIn 0.3s ease-out;
+            color: #333; /* Dark text for readability */
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .close-button {
+            color: #aaa;
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: #64dd17; /* Accent color */
+            text-decoration: none;
+        }
+
+        .modal-content h2 {
+            color: #64dd17;
+            margin-top: 0;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .modal-content input[type="text"] {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        .modal-content button {
+            background-color: #64dd17;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background-color 0.2s ease;
+        }
+        .modal-content button:hover {
+            background-color: #55be12;
+        }
+        .modal-content button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        #conceptOutput {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        #conceptOutput h4 {
+            color: #444;
+            margin-bottom: 8px;
+        }
+        #conceptOutput ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        #conceptOutput li {
+            background-color: #f9f9f9;
+            margin-bottom: 8px;
+            padding: 10px;
+            border-radius: 5px;
+            border-left: 3px solid #64dd17;
+        }
+        #conceptOutput .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #64dd17;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h3>Food Stall 3D Model</h3>
+        <p>Use your mouse to **rotate** and **zoom**.</p>
+        <p>Press <kbd>O</kbd> to toggle the **back door**.</p>
+        <p>Dimensions are in meters.</p>
+        <hr style="border-color: #555; margin: 10px 0;">
+        <p><strong>Stall Footprint:</strong> 3.0m (W) × 3.0m (D)</p>
+        <p><strong>Washing Area Start:</strong> 2.0m behind stall rear</p>
+        <p><strong>Min Aisle Width:</strong> 0.90m (Internal)</p>
+        <p><strong>Customer Clearance:</strong> 1.0m (Front)</p>
+    </div>
+
+    <div id="gemini-controls">
+        <button id="generateConceptBtn">✨ Generate Stall Concept ✨</button>
+    </div>
+
+    <!-- The Modal -->
+    <div id="conceptModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal()">&times;</span>
+            <h2>Generate Food Stall Concept</h2>
+            <p>Enter a cuisine or theme to generate a stall name, slogan, and menu:</p>
+            <input type="text" id="cuisineInput" placeholder="e.g., Mexican street food, Vegan bowls, Gourmet burgers">
+            <button id="submitConceptBtn">Generate Concept</button>
+            <div id="conceptOutput">
+                <!-- LLM generated content will be displayed here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Set up the scene, camera, and renderer
+        let scene, camera, renderer, controls;
+        let stallGroup; // Group to hold all stall elements for easier manipulation
+        let doorRotationTween; // Store Tween for door animation
+        let font; // Global font variable for text geometry
+
+        window.onload = function() {
+            init();
+            animate();
+        };
+
+        function init() {
+            // --- Stall Dimensions ---
+            const stallWidth = 3.0; // W (X-axis)
+            const stallDepth = 3.0; // D (Z-axis - front=0 to rear=3.0 as per brief)
+            const stallHeight = 2.5; // H (Y-axis - typical wall height)
+            const floorThickness = 0.05;
+
+            // Scene setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xdce0e4); // Light grey background, slightly blueish for ambient light
+
+            // Camera setup
+            // PerspectiveCamera(fov, aspect, near, far)
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(4, 5, 8); // Initial camera position for a good overview
+            camera.lookAt(0, 1.25, 1.5); // Look towards the center of the stall
+
+            // Renderer setup
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true; // Enable shadow mapping
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer shadows
+            document.body.appendChild(renderer.domElement);
+
+            // OrbitControls for interactive camera movement
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true; // Smooth camera movement
+            controls.dampingFactor = 0.05; // Make damping a bit faster
+            controls.screenSpacePanning = false; // Prevent panning vertically
+            controls.maxPolarAngle = Math.PI / 2 - 0.1; // Limit vertical rotation slightly below directly overhead
+            controls.minDistance = 2; // Min zoom distance
+            controls.maxDistance = 20; // Max zoom distance
+
+            // Create a group for the entire stall to easily move/rotate it later
+            stallGroup = new THREE.Group();
+            scene.add(stallGroup);
+
+            // Load a font for 3D text
+            const fontLoader = new THREE.FontLoader();
+            fontLoader.load('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/fonts/helvetiker_regular.typeface.json', function(loadedFont) {
+                font = loadedFont;
+                createStall(stallWidth, stallDepth, stallHeight, floorThickness);
+            });
+        }
+        
+        // Function to create 3D text. Moved to a global scope.
+        function createText(text, size, height, color, position, rotation, font) {
+            const textGeometry = new THREE.TextGeometry(text, {
+                font: font,
+                size: size,
+                height: height,
+            });
+            const textMaterial = new THREE.MeshBasicMaterial({ color: color });
+            const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+            textMesh.position.set(position.x, position.y, position.z);
+            textMesh.rotation.set(rotation.x, rotation.y, rotation.z);
+            textMesh.castShadow = true;
+            return textMesh;
+        }
+
+        function createStall(stallWidth, stallDepth, stallHeight, floorThickness) {
+            // --- Ground Plane (larger area for context) ---
+            const groundGeometry = new THREE.PlaneGeometry(20, 20);
+            const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x888888, side: THREE.DoubleSide });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2; // Rotate to be horizontal
+            ground.receiveShadow = true; // Ground receives shadows
+            scene.add(ground);
+
+            // --- Stall Floor (inside the stall) ---
+            // Textured, slip-resistant tile inside stall
+            const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x9e9e9e, roughness: 0.8, metalness: 0.1 });
+            const floor = new THREE.Mesh(new THREE.BoxGeometry(stallWidth, floorThickness, stallDepth), floorMaterial);
+            floor.position.set(0, floorThickness / 2, stallDepth / 2); // Positioned at y=0, centered on X, depth from Z=0 to Z=3
+            floor.receiveShadow = true;
+            stallGroup.add(floor);
+
+            // --- Stall Walls ---
+            const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xcfcfcf, roughness: 0.7, metalness: 0.05 });
+
+            // Rear wall (Z=3.0)
+            const rearWall = new THREE.Mesh(new THREE.BoxGeometry(stallWidth, stallHeight, 0.05), wallMaterial);
+            rearWall.position.set(0, stallHeight / 2 + floorThickness, stallDepth - 0.025);
+            rearWall.castShadow = true;
+            rearWall.receiveShadow = true;
+            stallGroup.add(rearWall);
+
+            // Left wall (X=-1.5)
+            const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.05, stallHeight, stallDepth), wallMaterial);
+            leftWall.position.set(-stallWidth / 2 + 0.025, stallHeight / 2 + floorThickness, stallDepth / 2);
+            leftWall.castShadow = true;
+            leftWall.receiveShadow = true;
+            stallGroup.add(leftWall);
+
+            // Right wall (X=1.5)
+            const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.05, stallHeight, stallDepth), wallMaterial);
+            rightWall.position.set(stallWidth / 2 - 0.025, stallHeight / 2 + floorThickness, stallDepth / 2);
+            rightWall.castShadow = true;
+            rightWall.receiveShadow = true;
+            stallGroup.add(rightWall);
+
+            // --- Counters in a C-shape layout ---
+            const counterHeight = 0.95; // Use 0.95 for all counters for a consistent look
+            const counterDepth = 0.75;
+            const counterMaterial = new THREE.MeshStandardMaterial({ color: 0xb0b0b0, roughness: 0.3, metalness: 0.8 });
+            const glassMaterial = new THREE.MeshStandardMaterial({ color: 0xadd8e6, transparent: true, opacity: 0.3, roughness: 0.1, metalness: 0.1 });
+
+            // 1. Front Counter (covers full width, touches both walls)
+            const frontCounterWidth = stallWidth;
+            const frontCounter = new THREE.Mesh(new THREE.BoxGeometry(frontCounterWidth, counterHeight, counterDepth), counterMaterial);
+            frontCounter.position.set(0, counterHeight / 2 + floorThickness, counterDepth / 2);
+            frontCounter.castShadow = true;
+            frontCounter.receiveShadow = true;
+            stallGroup.add(frontCounter);
+
+            // Showcase glass on front counter
+            const showcaseTop = new THREE.Mesh(new THREE.BoxGeometry(frontCounterWidth, 0.1, counterDepth), glassMaterial);
+            showcaseTop.position.set(0, counterHeight + floorThickness, counterDepth / 2);
+            showcaseTop.castShadow = true;
+            stallGroup.add(showcaseTop);
+
+            // 2. Left Side Counter
+            const sideCounterLength = 2.25; // Adjusted to leave a 0.9m aisle
+            const leftCounter = new THREE.Mesh(new THREE.BoxGeometry(counterDepth, counterHeight, sideCounterLength), counterMaterial);
+            leftCounter.position.set(-stallWidth / 2 + counterDepth / 2, counterHeight / 2 + floorThickness, counterDepth + sideCounterLength / 2);
+            leftCounter.castShadow = true;
+            leftCounter.receiveShadow = true;
+            stallGroup.add(leftCounter);
+
+            // 3. Right Side Counter
+            const rightCounter = new THREE.Mesh(new THREE.BoxGeometry(counterDepth, counterHeight, sideCounterLength), counterMaterial);
+            rightCounter.position.set(stallWidth / 2 - counterDepth / 2, counterHeight / 2 + floorThickness, counterDepth + sideCounterLength / 2);
+            rightCounter.castShadow = true;
+            rightCounter.receiveShadow = true;
+            stallGroup.add(rightCounter);
+
+
+            // --- Back Door ---
+            const doorWidth = 0.90;
+            const doorHeight = 2.0; // Standard door height
+            const doorThickness = 0.05;
+
+            // Center the door in the new aisle created by the C-shape
+            const doorHinge = new THREE.Object3D();
+            doorHinge.position.set(0, doorHeight / 2 + floorThickness, stallDepth - 0.025);
+            stallGroup.add(doorHinge);
+
+            const backDoorMaterial = new THREE.MeshStandardMaterial({ color: 0x8d6e63, roughness: 0.6 });
+            const backDoorMesh = new THREE.Mesh(new THREE.BoxGeometry(doorWidth, doorHeight, doorThickness), backDoorMaterial);
+            backDoorMesh.position.set(0, 0, 0);
+            backDoorMesh.castShadow = true;
+            backDoorMesh.receiveShadow = true;
+            backDoorMesh.name = "backDoor";
+            doorHinge.add(backDoorMesh);
+            doorHinge.isOpen = false;
+
+            // --- Washing / Utility Area ---
+            const washingAreaStartX = 0;
+            const washingBlockWidth = 1.0;
+            const washingBlockDepth = 0.7;
+            const washingBlockHeight = 0.9;
+            const washingBlockFrontZ = stallDepth + 2.0;
+            const washBlock = new THREE.Mesh(new THREE.BoxGeometry(washingBlockWidth, washingBlockHeight, washingBlockDepth), new THREE.MeshStandardMaterial({ color: 0x90a4ae, roughness: 0.5 }));
+            washBlock.position.set(washingAreaStartX, washingBlockHeight / 2 + floorThickness, washingBlockFrontZ + washingBlockDepth / 2);
+            washBlock.castShadow = true;
+            washBlock.receiveShadow = true;
+            stallGroup.add(washBlock);
+
+            // Basins
+            const basinDepth = 0.25;
+            const basinMaterial = new THREE.MeshStandardMaterial({ color: 0xbbdefb, roughness: 0.3, metalness: 0.1 });
+            const handWashBasin = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.15, basinDepth), basinMaterial);
+            handWashBasin.position.set(washingAreaStartX - 0.25, washingBlockHeight + floorThickness - 0.075, washingBlockFrontZ + washingBlockDepth / 2 - 0.05);
+            handWashBasin.castShadow = true;
+            stallGroup.add(handWashBasin);
+            const utensilBasin = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.15, basinDepth), basinMaterial);
+            utensilBasin.position.set(washingAreaStartX + 0.25, washingBlockHeight + floorThickness - 0.075, washingBlockFrontZ + washingBlockDepth / 2 - 0.05);
+            utensilBasin.castShadow = true;
+            stallGroup.add(utensilBasin);
+
+            // --- Stall Name Board ---
+            const boardSize = 10 * 0.0254; // Convert inches to meters (1 inch = 0.0254 m)
+            const boardGeometry = new THREE.BoxGeometry(boardSize, boardSize, 0.01);
+            const boardMaterial = new THREE.MeshStandardMaterial({ color: 0x444444 });
+            const stallNameBoard = new THREE.Mesh(boardGeometry, boardMaterial);
+            // Position at the top of the front wall, centered
+            stallNameBoard.position.set(0, stallHeight + floorThickness + (boardSize / 2), -0.05); // Z=-0.05 is just outside the front face
+            stallNameBoard.castShadow = true;
+            stallGroup.add(stallNameBoard);
+
+            const textHeight = 0.01;
+            const textY = floorThickness + 0.02;
+
+            // Stall Width (X)
+            stallGroup.add(createText("3.0 m", 0.1, textHeight, 0x000000, new THREE.Vector3(0, textY, stallDepth + 0.5), new THREE.Vector3(-Math.PI / 2, 0, 0), font));
+            // Stall Depth (Z)
+            stallGroup.add(createText("3.0 m", 0.1, textHeight, 0x000000, new THREE.Vector3(stallWidth / 2 + 0.5, textY, stallDepth / 2), new THREE.Vector3(-Math.PI / 2, Math.PI / 2, 0), font));
+            // Front Counter Width
+            stallGroup.add(createText("3.0 m", 0.08, textHeight, 0x333333, new THREE.Vector3(0, textY + 0.01, counterDepth / 2 + 0.2), new THREE.Vector3(-Math.PI / 2, 0, 0), font));
+            // Front Counter Depth
+            stallGroup.add(createText("0.75 m", 0.08, textHeight, 0x333333, new THREE.Vector3(-stallWidth / 2 + 0.1, textY + 0.01, counterDepth / 2), new THREE.Vector3(-Math.PI / 2, Math.PI / 2, 0), font));
+            // Side Counter Length
+            stallGroup.add(createText("2.25 m", 0.08, textHeight, 0x333333, new THREE.Vector3(-stallWidth / 2 + 0.1, textY + 0.01, counterDepth + sideCounterLength / 2), new THREE.Vector3(-Math.PI / 2, Math.PI / 2, 0), font));
+            // Internal Aisle Width
+            stallGroup.add(createText("0.9 m", 0.08, textHeight, 0x333333, new THREE.Vector3(0, textY + 0.01, stallDepth/2), new THREE.Vector3(-Math.PI / 2, 0, 0), font));
+            // Door Width
+            stallGroup.add(createText("0.9 m", 0.08, textHeight, 0x333333, new THREE.Vector3(0, textY + 0.01, stallDepth - 0.2), new THREE.Vector3(-Math.PI / 2, 0, 0), font));
+            // Door Height
+            stallGroup.add(createText("2.0 m", 0.08, textHeight, 0x333333, new THREE.Vector3(-0.8, doorHeight / 2 + floorThickness, stallDepth - 0.025), new THREE.Vector3(0, 0, 0), font));
+            // Rear Washing Area Buffer
+            stallGroup.add(createText("2.0 m", 0.08, textHeight, 0x0000ff, new THREE.Vector3(0, textY + 0.01, stallDepth + 1.0), new THREE.Vector3(-Math.PI / 2, 0, 0), font));
+
+
+            // --- Lighting ---
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
+            directionalLight.position.set(5, 10, 5);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            directionalLight.shadow.camera.near = 0.5;
+            directionalLight.shadow.camera.far = 50;
+            directionalLight.shadow.camera.left = -10;
+            directionalLight.shadow.camera.right = 10;
+            directionalLight.shadow.camera.top = 10;
+            directionalLight.shadow.camera.bottom = -10;
+            scene.add(directionalLight);
+
+            // --- Visual Cues for Clearances (red, yellow, blue planes/lines) ---
+            const clearanceMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.1, side: THREE.DoubleSide });
+            const customerClearance = new THREE.Mesh(new THREE.PlaneGeometry(3.0 + 1.0, 1.0), clearanceMaterial);
+            customerClearance.rotation.x = -Math.PI / 2;
+            customerClearance.position.set(0, 0.05 + 0.01, -0.5);
+            stallGroup.add(customerClearance);
+
+            const aisleLineMaterial = new THREE.LineBasicMaterial({ color: 0xffff00 });
+            const aislePoints = [];
+            aislePoints.push(new THREE.Vector3(-0.45, 0.05 + 0.01, 0.75 + 0.1));
+            aislePoints.push(new THREE.Vector3(-0.45, 0.05 + 0.01, 3.0 - 0.05));
+            const aisleGeometry1 = new THREE.BufferGeometry().setFromPoints(aislePoints);
+            const aisleLine1 = new THREE.Line(aisleGeometry1, aisleLineMaterial);
+            stallGroup.add(aisleLine1);
+
+            const aislePoints2 = [];
+            aislePoints2.push(new THREE.Vector3(0.45, 0.05 + 0.01, 0.75 + 0.1));
+            aislePoints2.push(new THREE.Vector3(0.45, 0.05 + 0.01, 3.0 - 0.05));
+            const aisleGeometry2 = new THREE.BufferGeometry().setFromPoints(aislePoints2);
+            const aisleLine2 = new THREE.Line(aisleGeometry2, aisleLineMaterial);
+            stallGroup.add(aisleLine2);
+
+            const bufferLineMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff });
+            const bufferPoints = [];
+            bufferPoints.push(new THREE.Vector3(-1.5, 0.05 + 0.01, 3.0 + 2.0));
+            bufferPoints.push(new THREE.Vector3(1.5, 0.05 + 0.01, 3.0 + 2.0));
+            const bufferGeometry = new THREE.BufferGeometry().setFromPoints(bufferPoints);
+            const bufferLine = new THREE.Line(bufferGeometry, bufferLineMaterial);
+            stallGroup.add(bufferLine);
+
+            // --- Helper Grid and Axes (Optional, for visual reference) ---
+            const gridHelper = new THREE.GridHelper(15, 15, 0x444444, 0x888888);
+            gridHelper.position.y = 0.05 + 0.005;
+            scene.add(gridHelper);
+            const axesHelper = new THREE.AxesHelper(5);
+            axesHelper.position.y = 0.05;
+            scene.add(axesHelper);
+
+            // Handle window resizing
+            window.addEventListener('resize', onWindowResize, false);
+
+            // Implement door opening interaction
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'o' || event.key === 'O') {
+                    const door = doorHinge;
+                    if (door) {
+                        if (doorRotationTween) {
+                            doorRotationTween.stop();
+                        }
+                        if (!door.isOpen) {
+                            doorRotationTween = new TWEEN.Tween(door.rotation)
+                                .to({ y: Math.PI / 2 + 0.1 }, 1000)
+                                .easing(TWEEN.Easing.Quadratic.Out)
+                                .start();
+                            door.isOpen = true;
+                        } else {
+                            doorRotationTween = new TWEEN.Tween(door.rotation)
+                                .to({ y: 0 }, 1000)
+                                .easing(TWEEN.Easing.Quadratic.Out)
+                                .start();
+                            door.isOpen = false;
+                        }
+                    }
+                }
+            });
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            if (typeof TWEEN !== 'undefined') {
+                 TWEEN.update();
+            }
+            renderer.render(scene, camera);
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.min.js';
+        document.head.appendChild(script);
+
+        // --- Gemini API Integration for Stall Concept Generation ---
+        const conceptModal = document.getElementById('conceptModal');
+        const generateConceptBtn = document.getElementById('generateConceptBtn');
+        const submitConceptBtn = document.getElementById('submitConceptBtn');
+        const cuisineInput = document.getElementById('cuisineInput');
+        const conceptOutput = document.getElementById('conceptOutput');
+
+        function openModal() {
+            conceptModal.style.display = 'flex';
+            cuisineInput.value = '';
+            conceptOutput.innerHTML = '';
+        }
+
+        function closeModal() {
+            conceptModal.style.display = 'none';
+        }
+
+        generateConceptBtn.addEventListener('click', openModal);
+
+        submitConceptBtn.addEventListener('click', async () => {
+            const cuisine = cuisineInput.value.trim();
+            if (!cuisine) {
+                conceptOutput.innerHTML = '<p style="color:red;">Please enter a cuisine or theme.</p>';
+                return;
+            }
+
+            conceptOutput.innerHTML = '<div class="loading-spinner"></div><p style="text-align:center;">Generating your concept...</p>';
+            submitConceptBtn.disabled = true;
+
+            try {
+                let chatHistory = [];
+                const prompt = `Generate a unique food stall concept for a '${cuisine}' theme. Provide a stall name, a catchy slogan, and a menu with at least 5 distinct items, each with a short description and a price. The output should be a JSON object matching the schema.`;
+                chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+
+                const payload = {
+                    contents: chatHistory,
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "OBJECT",
+                            properties: {
+                                "stallName": { "type": "STRING" },
+                                "slogan": { "type": "STRING" },
+                                "menu": {
+                                    "type": "ARRAY",
+                                    "items": {
+                                        "type": "OBJECT",
+                                        "properties": {
+                                            "item": { "type": "STRING" },
+                                            "description": { "type": "STRING" },
+                                            "price": { "type": "STRING" }
+                                        }
+                                    }
+                                }
+                            },
+                            "propertyOrdering": ["stallName", "slogan", "menu"]
+                        }
+                    }
+                };
+
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                let retryCount = 0;
+                const maxRetries = 5;
+                const baseDelay = 1000;
+
+                let result;
+                while (retryCount < maxRetries) {
+                    try {
+                        const response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+
+                        if (response.status === 429) {
+                            const delay = baseDelay * Math.pow(2, retryCount);
+                            retryCount++;
+                            await new Promise(res => setTimeout(res, delay));
+                            continue;
+                        }
+
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            throw new Error(`API error: ${response.status} - ${errorText}`);
+                        }
+
+                        result = await response.json();
+                        break;
+                    } catch (error) {
+                        if (retryCount < maxRetries - 1) {
+                            const delay = baseDelay * Math.pow(2, retryCount);
+                            retryCount++;
+                            await new Promise(res => setTimeout(res, delay));
+                        } else {
+                            throw error;
+                        }
+                    }
+                }
+
+                if (result && result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const jsonResponse = result.candidates[0].content.parts[0].text;
+                    const parsedConcept = JSON.parse(jsonResponse);
+
+                    let outputHtml = `
+                        <h4>Stall Name: ${parsedConcept.stallName}</h4>
+                        <p><strong>Slogan:</strong> ${parsedConcept.slogan}</p>
+                        <h4>Menu:</h4>
+                        <ul>
+                    `;
+                    parsedConcept.menu.forEach(item => {
+                        outputHtml += `<li><strong>${item.item}</strong> - ${item.description} (${item.price})</li>`;
+                    });
+                    outputHtml += `</ul>`;
+                    conceptOutput.innerHTML = outputHtml;
+
+                } else {
+                    conceptOutput.innerHTML = '<p style="color:red;">Failed to generate concept. Please try again.</p>';
+                }
+            } catch (error) {
+                console.error("Error generating concept:", error);
+                conceptOutput.innerHTML = `<p style="color:red;">Error: ${error.message || 'Could not connect to the API. Please check your network or try again later.'}</p>`;
+            } finally {
+                submitConceptBtn.disabled = false;
+            }
+        });
+
+    </script>
+</body>
+</html>

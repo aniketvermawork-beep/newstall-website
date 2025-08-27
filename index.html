@@ -40,7 +40,7 @@
     <div id="info">
         <h3>Food Stall 3D Model</h3>
         <p>Use your mouse to **rotate** and **zoom**.</p>
-        <p>Press <kbd>O</kbd> to toggle the **back door**.</p>
+        <p>The back door is always open.</p>
         <p>Dimensions are in meters.</p>
         <hr style="border-color: #555; margin: 10px 0;">
         <p><strong>Stall Footprint:</strong> 3.0m (W) × 3.0m (D)</p>
@@ -54,8 +54,8 @@
         // Set up the scene, camera, and renderer
         let scene, camera, renderer, controls;
         let stallGroup; // Group to hold all stall elements for easier manipulation
-        let doorRotationTween; // Store Tween for door animation
         let font; // Global font variable for text geometry
+        let wallTexture; // Global variable to store the loaded texture
 
         window.onload = function() {
             init();
@@ -71,7 +71,7 @@
 
             // Scene setup
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0xdce0e4); // Light grey background, slightly blueish for ambient light
+            scene.background = new THREE.Color(0xFFF9AF); // Light grey background, slightly blueish for ambient light
 
             // Camera setup
             // PerspectiveCamera(fov, aspect, near, far)
@@ -99,11 +99,30 @@
             stallGroup = new THREE.Group();
             scene.add(stallGroup);
 
-            // Load a font for 3D text
+            // Load font first, then try to load texture
             const fontLoader = new THREE.FontLoader();
             fontLoader.load('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/fonts/helvetiker_regular.typeface.json', function(loadedFont) {
                 font = loadedFont;
-                createStall(stallWidth, stallDepth, stallHeight, floorThickness);
+                
+                // Try to load texture
+                const textureLoader = new THREE.TextureLoader();
+                textureLoader.crossOrigin = 'anonymous'; // Handle CORS
+                textureLoader.load(
+                    'https://aniketvermawork-beep.github.io/logo/image.png',
+                    function(texture) {
+                        console.log('Texture loaded successfully');
+                        wallTexture = texture;
+                        createStall(stallWidth, stallDepth, stallHeight, floorThickness);
+                    },
+                    function(progress) {
+                        console.log('Texture loading progress:', progress);
+                    },
+                    function(error) {
+                        console.error('Error loading texture:', error);
+                        // Create stall without texture
+                        createStall(stallWidth, stallDepth, stallHeight, floorThickness);
+                    }
+                );
             });
         }
         
@@ -139,104 +158,91 @@
             floor.receiveShadow = true;
             stallGroup.add(floor);
 
-            // --- Stall Walls with Local Image Texture ---
-            const textureLoader = new THREE.TextureLoader();
-            const brandingTextureUrl = main/image.png; // Placeholder URL
+            // --- Create wall materials ---
+            let wallMaterial;
+            if (wallTexture) {
+                console.log('Creating textured wall material');
+                // Configure the texture for better visibility
+                wallTexture.wrapS = THREE.RepeatWrapping;
+                wallTexture.wrapT = THREE.RepeatWrapping;
+                wallTexture.repeat.set(2, 2); // Make texture repeat for better visibility
+                wallTexture.flipY = false; // Fix texture orientation
+                
+                wallMaterial = new THREE.MeshStandardMaterial({ 
+                    map: wallTexture,
+                    roughness: 0.8,
+                    metalness: 0.1,
+                    side: THREE.DoubleSide // Make sure texture is visible from both sides
+                });
+                console.log('Textured material created');
+            } else {
+                console.log('Using fallback white material');
+                // Fallback colored material to make it obvious when texture is missing
+                wallMaterial = new THREE.MeshStandardMaterial({ 
+                    color: 0xFF69B4, // Hot pink to make it obvious texture didn't load
+                    roughness: 0.7,
+                    metalness: 0.1
+                });
+            }
+
+            // --- Stall Walls with Texture ---
+            // Rear wall
+            const rearWall = new THREE.Mesh(new THREE.BoxGeometry(stallWidth, stallHeight, 0.05), wallMaterial);
+            rearWall.position.set(0, stallHeight / 2 + floorThickness, stallDepth - 0.025);
+            rearWall.castShadow = true;
+            rearWall.receiveShadow = true;
+            stallGroup.add(rearWall);
+
+            // Left wall
+            const leftWallMaterial = wallMaterial.clone();
+            if (wallTexture) {
+                leftWallMaterial.map = wallTexture.clone();
+                leftWallMaterial.map.repeat.set(2, 1);
+            }
+            const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.05, stallHeight, stallDepth), leftWallMaterial);
+            leftWall.position.set(-stallWidth / 2 + 0.025, stallHeight / 2 + floorThickness, stallDepth / 2);
+            leftWall.castShadow = true;
+            leftWall.receiveShadow = true;
+            stallGroup.add(leftWall);
+
+            // Right wall
+            const rightWallMaterial = wallMaterial.clone();
+            if (wallTexture) {
+                rightWallMaterial.map = wallTexture.clone();
+                rightWallMaterial.map.repeat.set(2, 1);
+            }
+            const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.05, stallHeight, stallDepth), rightWallMaterial);
+            rightWall.position.set(stallWidth / 2 - 0.025, stallHeight / 2 + floorThickness, stallDepth / 2);
+            rightWall.castShadow = true;
+            rightWall.receiveShadow = true;
+            stallGroup.add(rightWall);
+
+            // Front Counter Wall
+            const counterWallHeight = 0.95; // Match the counter height
+            const frontCounterWallMaterial = wallMaterial.clone();
+            if (wallTexture) {
+                frontCounterWallMaterial.map = wallTexture.clone();
+                frontCounterWallMaterial.map.repeat.set(3, 1);
+            }
+            const frontCounterWall = new THREE.Mesh(new THREE.BoxGeometry(stallWidth, counterWallHeight, 0.05), frontCounterWallMaterial);
+            frontCounterWall.position.set(0, counterWallHeight / 2 + floorThickness, 0.025);
+            frontCounterWall.castShadow = true;
+            frontCounterWall.receiveShadow = true;
+            stallGroup.add(frontCounterWall);
             
-            textureLoader.load(
-                brandingTextureUrl,
-                function(texture) {
-                    texture.wrapS = THREE.RepeatWrapping;
-                    texture.wrapT = THREE.RepeatWrapping;
-                    
-                    const frontWallMaterial = new THREE.MeshStandardMaterial({ map: texture });
-                    const sideWallMaterial = new THREE.MeshStandardMaterial({ map: texture });
-                    const rearWallMaterial = new THREE.MeshStandardMaterial({ map: texture });
-
-                    // The texture will be tiled to fit the dimensions of each wall
-                    const aspectRatio = texture.image.width / texture.image.height;
-                    const stallHeight = 2.5;
-                    
-                    // Rear wall
-                    const rearWall = new THREE.Mesh(new THREE.BoxGeometry(stallWidth, stallHeight, 0.05), rearWallMaterial);
-                    rearWall.position.set(0, stallHeight / 2 + floorThickness, stallDepth - 0.025);
-                    rearWall.castShadow = true;
-                    rearWall.receiveShadow = true;
-                    stallGroup.add(rearWall);
-                    rearWall.material.map.repeat.set(stallWidth / stallHeight / aspectRatio, 1);
-
-                    // Left wall
-                    const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.05, stallHeight, stallDepth), sideWallMaterial);
-                    leftWall.position.set(-stallWidth / 2 + 0.025, stallHeight / 2 + floorThickness, stallDepth / 2);
-                    leftWall.castShadow = true;
-                    leftWall.receiveShadow = true;
-                    stallGroup.add(leftWall);
-                    leftWall.material.map.repeat.set(stallDepth / stallHeight / aspectRatio, 1);
-                    leftWall.material.map.rotation = Math.PI / 2; // Rotate the texture for proper alignment
-
-                    // Right wall
-                    const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.05, stallHeight, stallDepth), sideWallMaterial);
-                    rightWall.position.set(stallWidth / 2 - 0.025, stallHeight / 2 + floorThickness, stallDepth / 2);
-                    rightWall.castShadow = true;
-                    rightWall.receiveShadow = true;
-                    stallGroup.add(rightWall);
-                    rightWall.material.map.repeat.set(stallDepth / stallHeight / aspectRatio, 1);
-                    rightWall.material.map.rotation = -Math.PI / 2; // Rotate the texture for proper alignment
-
-                    // Front Header Panel (3m wide, 0.5m high, positioned at the top)
-                    const headerHeight = 0.5;
-                    const headerWidth = 3.0;
-                    const headerPanel = new THREE.Mesh(new THREE.BoxGeometry(headerWidth, headerHeight, 0.05), frontWallMaterial);
-                    headerPanel.position.set(0, stallHeight + floorThickness - headerHeight/2, 0.025);
-                    headerPanel.castShadow = true;
-                    headerPanel.receiveShadow = true;
-                    stallGroup.add(headerPanel);
-                    headerPanel.material.map.repeat.set(headerWidth / headerHeight / aspectRatio, 1);
-
-                    // Front Counter Wall (covers the table/counter area)
-                    const counterWallHeight = counterHeight; // Match the counter height
-                    const frontCounterWall = new THREE.Mesh(new THREE.BoxGeometry(stallWidth, counterWallHeight, 0.05), frontWallMaterial);
-                    frontCounterWall.position.set(0, counterWallHeight / 2 + floorThickness, 0.025);
-                    frontCounterWall.castShadow = true;
-                    frontCounterWall.receiveShadow = true;
-                    stallGroup.add(frontCounterWall);
-                    frontCounterWall.material.map.repeat.set(stallWidth / counterWallHeight / aspectRatio, 1);
-                },
-                undefined, // onProgress callback
-                function(err) {
-                    console.error('An error happened loading the local image:', err);
-                    console.log('Make sure image.png is in the same directory as this HTML file');
-                    // Use a fallback material if the texture fails to load
-                    const fallbackMaterial = new THREE.MeshStandardMaterial({ color: 0xcccccc });
-                    
-                    const rearWall = new THREE.Mesh(new THREE.BoxGeometry(stallWidth, stallHeight, 0.05), fallbackMaterial);
-                    rearWall.position.set(0, stallHeight / 2 + floorThickness, stallDepth - 0.025);
-                    rearWall.castShadow = true;
-                    rearWall.receiveShadow = true;
-                    stallGroup.add(rearWall);
-
-                    const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.05, stallHeight, stallDepth), fallbackMaterial);
-                    leftWall.position.set(-stallWidth / 2 + 0.025, stallHeight / 2 + floorThickness, stallDepth / 2);
-                    leftWall.castShadow = true;
-                    leftWall.receiveShadow = true;
-                    stallGroup.add(leftWall);
-
-                    const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.05, stallHeight, stallDepth), fallbackMaterial);
-                    rightWall.position.set(stallWidth / 2 - 0.025, stallHeight / 2 + floorThickness, stallDepth / 2);
-                    rightWall.castShadow = true;
-                    rightWall.receiveShadow = true;
-                    stallGroup.add(rightWall);
-
-                    // Front Header Panel (3m wide, 0.5m high, positioned at the top)
-                    const headerHeight = 0.5;
-                    const headerWidth = 3.0;
-                    const headerPanel = new THREE.Mesh(new THREE.BoxGeometry(headerWidth, headerHeight, 0.05), fallbackMaterial);
-                    headerPanel.position.set(0, stallHeight + floorThickness - headerHeight/2, 0.025);
-                    headerPanel.castShadow = true;
-                    headerPanel.receiveShadow = true;
-                    stallGroup.add(headerPanel);
-                }
-            );
+            // --- Front Header Panel with texture ---
+            const headerHeight = 0.5;
+            const headerWidth = 3.0;
+            
+            const headerMaterial = wallTexture ? 
+                new THREE.MeshStandardMaterial({ map: wallTexture.clone() }) :
+                new THREE.MeshStandardMaterial({ color: 0xf5f5f5 });
+            
+            const headerPanel = new THREE.Mesh(new THREE.BoxGeometry(headerWidth, headerHeight, 0.05), headerMaterial);
+            headerPanel.position.set(0, stallHeight + floorThickness - headerHeight/2, 0.025);
+            headerPanel.castShadow = true;
+            headerPanel.receiveShadow = true;
+            stallGroup.add(headerPanel);
 
             // --- Counters in a C-shape layout ---
             const counterHeight = 0.95; // Use 0.95 for all counters for a consistent look
@@ -347,7 +353,7 @@
 
             // 4. Text label on Right Counter
             if (font) {
-                const labelText = createText("For cutting/production work", 0.06, 0.01, 0xFFFFFF, 
+                const labelText = createText("For cutting/production work", 0.06, 0.01, 0x000000, 
                     new THREE.Vector3(stallWidth / 2 - counterDepth / 2 - 0.3, counterHeight + floorThickness + 0.02, counterDepth + 0.3), 
                     new THREE.Vector3(-Math.PI / 2, 0, 0), font);
                 stallGroup.add(labelText);
@@ -359,9 +365,10 @@
             const doorHeight = 2.0; // Standard door height
             const doorThickness = 0.05;
 
-            // Center the door in the new aisle created by the C-shape
+            // The door will be permanently open and rotated
             const doorHinge = new THREE.Object3D();
             doorHinge.position.set(0, doorHeight / 2 + floorThickness, stallDepth - 0.025);
+            doorHinge.rotation.y = Math.PI / 2; // Set rotation to open position
             stallGroup.add(doorHinge);
 
             const backDoorMaterial = new THREE.MeshStandardMaterial({ color: 0x8d6e63, roughness: 0.6 });
@@ -371,7 +378,6 @@
             backDoorMesh.receiveShadow = true;
             backDoorMesh.name = "backDoor";
             doorHinge.add(backDoorMesh);
-            doorHinge.isOpen = false;
 
             // --- Washing / Utility Area ---
             const washingAreaStartX = 0;
@@ -476,31 +482,6 @@
 
             // Handle window resizing
             window.addEventListener('resize', onWindowResize, false);
-
-            // Implement door opening interaction
-            document.addEventListener('keydown', (event) => {
-                if (event.key === 'o' || event.key === 'O') {
-                    const door = doorHinge;
-                    if (door) {
-                        if (doorRotationTween) {
-                            doorRotationTween.stop();
-                        }
-                        if (!door.isOpen) {
-                            doorRotationTween = new TWEEN.Tween(door.rotation)
-                                .to({ y: Math.PI / 2 + 0.1 }, 1000)
-                                .easing(TWEEN.Easing.Quadratic.Out)
-                                .start();
-                            door.isOpen = true;
-                        } else {
-                            doorRotationTween = new TWEEN.Tween(door.rotation)
-                                .to({ y: 0 }, 1000)
-                                .easing(TWEEN.Easing.Quadratic.Out)
-                                .start();
-                            door.isOpen = false;
-                        }
-                    }
-                }
-            });
         }
 
         function onWindowResize() {
@@ -517,10 +498,6 @@
             }
             renderer.render(scene, camera);
         }
-
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.min.js';
-        document.head.appendChild(script);
     </script>
 </body>
 </html>

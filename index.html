@@ -49,6 +49,7 @@
         <p><strong>Customer Clearance:</strong> 1.0m (Front)</p>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.min.js"></script>
     <script>
         // Set up the scene, camera, and renderer
         let scene, camera, renderer, controls;
@@ -138,11 +139,10 @@
             floor.receiveShadow = true;
             stallGroup.add(floor);
 
-            // --- Stall Walls with Branding Texture ---
+            // --- Stall Walls with Local Image Texture ---
             const textureLoader = new THREE.TextureLoader();
-            const brandingTextureUrl = 'https://placehold.co/1000x1000/000000/FFFFFF?text=Brand+Logo'; // Placeholder URL
-            const fallbackTextureUrl = 'https://placehold.co/1000x1000/000000/FFFFFF?text=Branding';
-
+            const brandingTextureUrl = 'https://placehold.co/1000x1000/292929/C0C0C0?text=Brand+Logo'; // Placeholder URL
+            
             textureLoader.load(
                 brandingTextureUrl,
                 function(texture) {
@@ -183,34 +183,58 @@
                     rightWall.material.map.repeat.set(stallDepth / stallHeight / aspectRatio, 1);
                     rightWall.material.map.rotation = -Math.PI / 2; // Rotate the texture for proper alignment
 
-                    // Front Wall
-                    const frontWall = new THREE.Mesh(new THREE.BoxGeometry(stallWidth, stallHeight, 0.05), frontWallMaterial);
-                    frontWall.position.set(0, stallHeight / 2 + floorThickness, 0.025);
-                    frontWall.castShadow = true;
-                    frontWall.receiveShadow = true;
-                    stallGroup.add(frontWall);
-                    frontWall.material.map.repeat.set(stallWidth / stallHeight / aspectRatio, 1);
+                    // Front Header Panel (3m wide, 0.5m high, positioned at the top)
+                    const headerHeight = 0.5;
+                    const headerWidth = 3.0;
+                    const headerPanel = new THREE.Mesh(new THREE.BoxGeometry(headerWidth, headerHeight, 0.05), frontWallMaterial);
+                    headerPanel.position.set(0, stallHeight + floorThickness - headerHeight/2, 0.025);
+                    headerPanel.castShadow = true;
+                    headerPanel.receiveShadow = true;
+                    stallGroup.add(headerPanel);
+                    headerPanel.material.map.repeat.set(headerWidth / headerHeight / aspectRatio, 1);
+
+                    // Front Counter Wall (covers the table/counter area)
+                    const counterWallHeight = counterHeight; // Match the counter height
+                    const frontCounterWall = new THREE.Mesh(new THREE.BoxGeometry(stallWidth, counterWallHeight, 0.05), frontWallMaterial);
+                    frontCounterWall.position.set(0, counterWallHeight / 2 + floorThickness, 0.025);
+                    frontCounterWall.castShadow = true;
+                    frontCounterWall.receiveShadow = true;
+                    stallGroup.add(frontCounterWall);
+                    frontCounterWall.material.map.repeat.set(stallWidth / counterWallHeight / aspectRatio, 1);
                 },
                 undefined, // onProgress callback
                 function(err) {
-                    console.error('An error happened loading the image texture:', err);
+                    console.error('An error happened loading the local image:', err);
+                    console.log('Make sure image.png is in the same directory as this HTML file');
                     // Use a fallback material if the texture fails to load
                     const fallbackMaterial = new THREE.MeshStandardMaterial({ color: 0xcccccc });
+                    
                     const rearWall = new THREE.Mesh(new THREE.BoxGeometry(stallWidth, stallHeight, 0.05), fallbackMaterial);
                     rearWall.position.set(0, stallHeight / 2 + floorThickness, stallDepth - 0.025);
+                    rearWall.castShadow = true;
+                    rearWall.receiveShadow = true;
                     stallGroup.add(rearWall);
 
                     const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.05, stallHeight, stallDepth), fallbackMaterial);
                     leftWall.position.set(-stallWidth / 2 + 0.025, stallHeight / 2 + floorThickness, stallDepth / 2);
+                    leftWall.castShadow = true;
+                    leftWall.receiveShadow = true;
                     stallGroup.add(leftWall);
 
                     const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.05, stallHeight, stallDepth), fallbackMaterial);
                     rightWall.position.set(stallWidth / 2 - 0.025, stallHeight / 2 + floorThickness, stallDepth / 2);
+                    rightWall.castShadow = true;
+                    rightWall.receiveShadow = true;
                     stallGroup.add(rightWall);
 
-                    const frontWall = new THREE.Mesh(new THREE.BoxGeometry(stallWidth, stallHeight, 0.05), fallbackMaterial);
-                    frontWall.position.set(0, stallHeight / 2 + floorThickness, 0.025);
-                    stallGroup.add(frontWall);
+                    // Front Header Panel (3m wide, 0.5m high, positioned at the top)
+                    const headerHeight = 0.5;
+                    const headerWidth = 3.0;
+                    const headerPanel = new THREE.Mesh(new THREE.BoxGeometry(headerWidth, headerHeight, 0.05), fallbackMaterial);
+                    headerPanel.position.set(0, stallHeight + floorThickness - headerHeight/2, 0.025);
+                    headerPanel.castShadow = true;
+                    headerPanel.receiveShadow = true;
+                    stallGroup.add(headerPanel);
                 }
             );
 
@@ -248,6 +272,86 @@
             rightCounter.castShadow = true;
             rightCounter.receiveShadow = true;
             stallGroup.add(rightCounter);
+
+            // --- Equipment and Items on Counters ---
+            
+            // 1. Three Medium Chafing Dishes on Front Counter
+            const dishMaterial = new THREE.MeshStandardMaterial({ color: 0xc0c0c0, metalness: 0.8, roughness: 0.2 });
+            const dishWidth = 0.6;
+            const dishDepth = 0.4;
+            const dishHeight = 0.15;
+            const lidHeight = 0.05;
+            
+            // Dish 1
+            const chafingDish1 = new THREE.Mesh(new THREE.BoxGeometry(dishWidth, dishHeight, dishDepth), dishMaterial);
+            chafingDish1.position.set(-0.8, counterHeight + floorThickness + dishHeight/2, counterDepth/2);
+            chafingDish1.castShadow = true;
+            stallGroup.add(chafingDish1);
+            
+            const chafingLid1 = new THREE.Mesh(new THREE.BoxGeometry(dishWidth + 0.02, lidHeight, dishDepth + 0.02), dishMaterial);
+            chafingLid1.position.set(-0.8, counterHeight + floorThickness + dishHeight + lidHeight/2, counterDepth/2);
+            chafingLid1.castShadow = true;
+            stallGroup.add(chafingLid1);
+
+            // Dish 2
+            const chafingDish2 = new THREE.Mesh(new THREE.BoxGeometry(dishWidth, dishHeight, dishDepth), dishMaterial);
+            chafingDish2.position.set(0, counterHeight + floorThickness + dishHeight/2, counterDepth/2);
+            chafingDish2.castShadow = true;
+            stallGroup.add(chafingDish2);
+            
+            const chafingLid2 = new THREE.Mesh(new THREE.BoxGeometry(dishWidth + 0.02, lidHeight, dishDepth + 0.02), dishMaterial);
+            chafingLid2.position.set(0, counterHeight + floorThickness + dishHeight + lidHeight/2, counterDepth/2);
+            chafingLid2.castShadow = true;
+            stallGroup.add(chafingLid2);
+
+            // Dish 3
+            const chafingDish3 = new THREE.Mesh(new THREE.BoxGeometry(dishWidth, dishHeight, dishDepth), dishMaterial);
+            chafingDish3.position.set(0.8, counterHeight + floorThickness + dishHeight/2, counterDepth/2);
+            chafingDish3.castShadow = true;
+            stallGroup.add(chafingDish3);
+            
+            const chafingLid3 = new THREE.Mesh(new THREE.BoxGeometry(dishWidth + 0.02, lidHeight, dishDepth + 0.02), dishMaterial);
+            chafingLid3.position.set(0.8, counterHeight + floorThickness + dishHeight + lidHeight/2, counterDepth/2);
+            chafingLid3.castShadow = true;
+            stallGroup.add(chafingLid3);
+
+            // 2. Manual Domestic SS 2 Burner Gas Stove on Left Counter
+            const stoveBaseMaterial = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6 });
+            const stoveTopMaterial = new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.4 });
+            const burnerMaterial = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.4 });
+            
+            // Stove base
+            const stoveBase = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.08, 0.4), stoveBaseMaterial);
+            stoveBase.position.set(-stallWidth / 2 + counterDepth / 2, counterHeight + floorThickness + 0.04, counterDepth + 0.6);
+            stoveBase.castShadow = true;
+            stallGroup.add(stoveBase);
+            
+            // Burners
+            const burner1 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.02), burnerMaterial);
+            burner1.position.set(-stallWidth / 2 + counterDepth / 2 - 0.1, counterHeight + floorThickness + 0.08 + 0.01, counterDepth + 0.6);
+            burner1.castShadow = true;
+            stallGroup.add(burner1);
+            
+            const burner2 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.02), burnerMaterial);
+            burner2.position.set(-stallWidth / 2 + counterDepth / 2 + 0.1, counterHeight + floorThickness + 0.08 + 0.01, counterDepth + 0.6);
+            burner2.castShadow = true;
+            stallGroup.add(burner2);
+
+            // 3. LPG Gas Cylinder under Left Counter
+            const cylinderGeometry = new THREE.CylinderGeometry(0.2, 0.2, 0.5, 32);
+            const cylinderMaterial = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.6 });
+            const cylinder = new THREE.Mesh(cylinderGeometry, cylinderMaterial);
+            cylinder.position.set(-stallWidth / 2 + 0.5, 0.25 + floorThickness, counterDepth + 0.6); // Placed under the left counter
+            cylinder.castShadow = true;
+            stallGroup.add(cylinder);
+
+            // 4. Text label on Right Counter
+            if (font) {
+                const labelText = createText("For cutting/production work", 0.06, 0.01, 0xFFFFFF, 
+                    new THREE.Vector3(stallWidth / 2 - counterDepth / 2 - 0.3, counterHeight + floorThickness + 0.02, counterDepth + 0.3), 
+                    new THREE.Vector3(-Math.PI / 2, 0, 0), font);
+                stallGroup.add(labelText);
+            }
 
 
             // --- Back Door ---
